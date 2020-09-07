@@ -1,6 +1,15 @@
+;;; poly-sphinxweb.el --- Polymode for SphinxWEB literate programming system
+
+;; Version: 0.1
+
+;;; Commentary:
+;; 
+
+
+;;; Code:
+
 (require 'polymode)
 (require 'rst)
-
 
 (define-hostmode poly-sphinxweb-hostmode nil
   "SphinxWEB test hostmode"
@@ -15,9 +24,6 @@
   :head-mode 'host
   :mode-matcher (cons "^\s*@[(|<].*@[)|>]\s+=\\+?\s+\\(\\w+\\)" 1))
 
-;; (define-innermode poly-sphinxweb-escaped-innermode nil
-;;   "Submode for literal text")
-
 ;;;###autoload (autoload #'poly-sphinxweb-mode "poly-sphinxweb")
 (define-polymode poly-sphinxweb-mode
   :hostmode 'poly-sphinxweb-hostmode
@@ -27,3 +33,5 @@
 (add-to-list 'auto-mode-alist '("\\.sphweb\\'" . poly-sphinxweb-mode))
 
 (provide 'poly-sphinxweb)
+
+;;; poly-sphinxweb.el ends here
