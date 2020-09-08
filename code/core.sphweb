@@ -1,0 +1,47 @@
+====================
+SphinxWEB Main parts
+====================
+
+Chunk Representation and operations
+===================================
+
+Parsed source represents as group of interconnected trees. Chunk is a
+leaf of this tree. File chunks used as roots for every code tree.
+
+Alongsize the name and code, every chunk structure connected with
+usage and all used chunks in these code. One chunk can be used in
+defferent tangled files, thats why trees possibly crossconnected.
+
+Also, every chank has link to the place of its definition. Link has
+format ``<path>:<line number>``. This information used by tangling and
+weaving both.
+
+All chunks stored in one of two hash tables: one for file chunks and
+another for regular chunks. Names used as the string keys.
+
+Chunks itself doesn't knows anything about their type. All depends
+only on storage.
+
+
+@<Chunk definition and creation@> = lisp
+(defstruct chunk
+  name
+  code
+  link
+  appears-in
+  contains)
+
+
+(defparameter *file-chunks* (make-hash-table :test 'equal))
+
+
+(defparameter *chunks* (make-hash-table :test 'equal))
+
+(defun !create-chunk (fields is-file?)
+  (let ((new-chunk (apply #'make-chunk fields))
+        (storage (if is-file?
+                          *file-chunks*
+                          *chunks*)))
+    (setf (gethash (chunk-name new-chunk) storage) new-chunk))
+)
+@
