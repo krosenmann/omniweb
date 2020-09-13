@@ -21,7 +21,6 @@
   :head-matcher "^\s*@?[(|<].*@[)|>]\s*=\s*.*\n"
   :tail-matcher "^\s*@\s*$"
   :mode 'host
-  :head-mode 'host
   :mode-matcher (cons "^\s*@[(|<].*@[)|>]\s+=\\+?\s+\\(\\w+\\)" 1))
 
 ;;;###autoload (autoload #'poly-sphinxweb-mode "poly-sphinxweb")
