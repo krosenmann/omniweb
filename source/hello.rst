@@ -85,17 +85,9 @@ document hierarchies. That means in one project you may have more than
 one master WEB file. Use this if you can split your project into some subprojects.
 **This is the strongly recommended way.**
 
-.. warning::
-   You can use chunk application command (``=+``) ONLY in ONE document
-   tree. But all chunks ready for use for all subproject.
-
-   As an example, you have following dirs in your project.
-   ``source/lib-one/index.sphweb``
-   ``source/lib-two/index.sphweb``
-   If you define @<Fancy chunk@> in lib-one, then you cannot
-   * Redefine it in lib-two
-   * Call ``@<Fancy chunk@> +=`` in lib-two.
-   Both tries will raise errors.
+.. warning:: You can use chunk application command (``=+``) ONLY in
+   ONE sphinx-web file . But all chunks ready for use for all
+   subproject.
 
 
 Development framework with SphinxWEB
@@ -107,8 +99,7 @@ TBD
 .. _mark_spec:
 
 List of all metamarkup commands
-===============================
-
+=============================== 
 **@** the root symbol of sphinxweb metamarkup. All web bounded
 commands starts with this symbol. If next symbol after **@** not the
 valid metamarkup command, then parser translates it as is.
@@ -116,7 +107,7 @@ valid metamarkup command, then parser translates it as is.
 SphinxWEB builded on top of the ReStructuredText (sphinx extension).
 List of additional markups:
 
-**@@** 
+**@@**
   Escaping @ symbol. For example, if U wanna write
   an email address in document then you need to write double at symbol:
   *krosenmann@@example.com* and on weaving it will looks normally:
