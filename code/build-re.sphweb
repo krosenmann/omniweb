@@ -13,7 +13,7 @@ Compiled regexps unmutable.  Define it once and use forever.
 @<re ops@> = lisp
 @<String dump of regexp@>
 
-@<define regexp@>
+@<Define regexp@>
 
 @<RE concatenation@>
 @
