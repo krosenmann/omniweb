@@ -1,0 +1,14 @@
+Building a tree
+===============
+
+
+@<Build tree@> = lisp
+
+(defun scan-used (chunk)
+  (dolist (code-line (code chunk))
+    (if (setf used-chunk (ppcre:scan-string +chunk-name+ code-line))
+        
+    ))
+  )
+
+@

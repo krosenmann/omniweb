@@ -1,0 +1,135 @@
+Parsing
+=======
+
+Core point of parsing: read all given source files and create
+structures for chunks.
+
+@<Parsing@> = lisp
+@<Chunk regexps@>
+@<File operations@>
+@<Line parsing@>
+@<Building a tree@>
+@
+
+Reading a file
+--------------
+Every line of given file pushes to list
+- *line number*
+- *file name*
+- *line content*
+
+This operation needed for creating usefull error messages and for
+defining chunk coordinates on chunk creation.
+
+@<File operations@> = lisp
+(defun read-this-file (filename)
+  (let ((lino 0))
+    (mapcar #'(lambda (line) (list (incf lino) filename line)) 
+            (uiop:read-file-lines filename)))
+   )
+@
+
+Fixing chunk headers
+--------------------
+
+TBD
+
+@<File operations@> =+ lisp
+
+@
+
+
+Line parsing
+------------
+
+Line parsing utility reads file line by line and creates lisp
+respresentation of every readed chunk.
+
+@<Chunk regexps@> = lisp
+
+@<re ops@>
+
+(defscanner +chunk-name+ "^@<([^>]+)@>")
+(defscanner +file-name+ "^@\\(([^)]+)@\\)")
+(defscanner +operation+ "\\s*(=\\+?)\\s*")
+(defscanner +language+ "([\\S]+)\\s*$")
+(defscanner +end-of-chunk+ "^@\\s*$")
+
+(defscanner +chunk-definition+
+  (re-concat '+chunk-name+ '+operation+ '+language+))
+(defscanner +filechunk-definition+
+  (re-concat '+file-name+ '+operation+ '+language+))
+@
+
+First, we looking for chunk head in the code. If header matched then
+starts chunk construction mode. Every line until end of chunk appends
+to ``code`` field in the chunk structure.
+
+@<Line parsing@> = lisp
+(defun parse-header (line)
+  (let ((content (nth 2 line))
+        (lino (nth 0 line))
+        (filename (nth 1 line)))
+    (ppcre:register-groups-bind (name op language)
+        (+chunk-definition+ content)
+      (list 
+       (if (equal op "=") 'create-chunk 'append-chunk)
+       (make-instance 'chunk
+                      :name name
+                      :language language
+                      :storage *chunks*
+                      :file filename
+                      :link (list lino)
+                      )))
+    ))
+
+
+(defun parse-file-header (line)
+  (let ((content (nth 2 line))
+        (lino (nth 0 line))
+        (filename (nth 1 line)))
+    (ppcre:register-groups-bind (name op language)
+        (+filechunk-definition+ content)
+      (list
+       (if (equal op "=") '!create-chunk '!append-chunk)
+       (make-instance 'chunk
+                      :name name
+                      :language language
+                      :storage *file-chunks*
+                      :file filename
+                      :link (list lino))))
+    ))
+
+
+(defun eoc? (line)
+  (ppcre:scan +end-of-chunk+ line))
+
+
+(defun extract-chunks (lines)
+  (let ((chunk-mode? 'nil)
+        (buff 'nil)
+        (op 'nil)
+        (current-chunk 'nil))
+
+    (dolist (line lines)
+      (let ((header (or (parse-header line)
+                        (parse-file-header line)))
+            (eoc (eoc? (nth 2 line))))
+        (cond
+          (eoc (progn
+                 (setf (code current-chunk) buff)
+                 (apply op (list current-chunk))
+                 (setf chunk-mode? 'nil)
+                 (setf buff '())
+                 (setf op 'nil)))
+          (header (progn
+                    (setf op (car header))
+                    (setf current-chunk (cadr header))
+                    (setf chunk-mode? t)
+                    (format t "Header: ~A ~%" header)
+                    ))
+          (chunk-mode? (setf buff (append buff (list (nth 2 line))))))
+          ))
+    ))
+@
+

@@ -1,0 +1,104 @@
+Chunk Representation and operations
+===================================
+
+Chunk
+-----
+
+The parsed source represents a group of interconnected trees. Chunk is
+a leaf of this tree. File chunks use as roots for every code tree.
+
+Alongside the name and code, every chunk structure connected with
+usage and all used chunks in its code. One chunk can be used in
+different tangled files, that's why trees possibly cross-connected.
+
+Also, every chank has a link to the place of its definition. Link has
+two parts file path and line number. This information used both by tangling and
+weaving.
+
+``language`` is the field used by weaver. Also, language in chunk
+definition can be used for providing syntax highlighting in your text
+editor. See @external-doc{external-tools/poly-sphinxweb} for GNU Emacs example.
+
+All chunks stored in one of two hash tables: one for file chunks and
+another for regular chunks. Names used as the string keys.
+
+Chunks itself doesn't know anything about their type. All depends
+on storage only.
+
+
+@<Chunk definition and creation@> = lisp
+(defclass chunk ()
+  ((name :initarg :name
+         :accessor name)
+   (code :initform nil
+         :accessor code)
+   (link :initarg :link
+         :accessor link)
+   (storage :initarg :storage
+            :accessor storage)
+   (appears-in :initform nil
+               :accessor appears-in)
+   (contains :initform nil
+             :accessor contains)
+   (language :initarg :language 
+             :accessor language)
+   (file :initarg :file
+         :accessor file)))
+
+(defparameter *file-chunks* (make-hash-table :test 'equal))
+
+(defparameter *chunks* (make-hash-table :test 'equal))
+
+(defun get-file-chunk (name)
+  (gethash name *file-chunks*))
+
+(defun get-chunk (name)
+  (gethash name *chunks*))
+@
+
+Operations
+----------
+
+There's two possible operations for chunk.
+Definition (``=``) and expansion (``=+``).
+
+Definition just creates chunk
+
+@<Chunk operations@> = lisp
+
+(defun create-chunk (new-chunk)
+  (let* ((chunk-storage (storage new-chunk))
+         (exists? (gethash (name new-chunk) chunk-storage)))
+    (when exists?
+      (error "Chunk \"~A\" already defined in ~A:~A~%" (name new-chunk) (file exists?) (link exists?)))
+    (setf (gethash (name new-chunk) chunk-storage) new-chunk)))
+
+@
+
+Expansion appends chunk structure to existent with the same
+name. Actually, expansion is the parametrized increment function for structures.
+
+@<Chunk operations@> =+ lisp
+
+(defun append-chunk (appendix)
+  (let* ((storage* (storage appendix))
+        (for-extension (gethash (name appendix) storage*)))
+
+    ;; Errors
+    (unless for-extension
+      (error "Chunk ~A undefined. ~A~%" (name appendix) (file appendinx)))
+    (let ((initial-file (file for-extension))
+          (appendix-file (file appendix)))
+      (when (not (equal initial-file appendix-file))
+        (error (format 'nil "Multifile expansion! Chunk defined in ~A but expands in ~A"
+                     initial-file appendix-file))))
+
+    ;; Now actual append
+    (progn
+      (setf (link for-extension) (append (link for-extension) (link appendix)))
+      (setf (code for-extension) (append (code for-extension) (code appendix))))))
+@
+
+That's all. This is all operations what we need for chunks
+itself. Any other chunk function in the system is about parsing or producing
+result.
