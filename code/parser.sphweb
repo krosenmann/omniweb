@@ -49,14 +49,15 @@ respresentation of every readed chunk.
 
 @<re ops@>
 
-(defscanner +chunk-name+ "^@<([^>]+)@>")
+(defscanner +chunk-name+ "@<([^>]+)@>")
+(defscanner +line-start "^")
 (defscanner +file-name+ "^@\\(([^)]+)@\\)")
 (defscanner +operation+ "\\s*(=\\+?)\\s*")
 (defscanner +language+ "([\\S]+)\\s*$")
 (defscanner +end-of-chunk+ "^@\\s*$")
 
 (defscanner +chunk-definition+
-  (re-concat '+chunk-name+ '+operation+ '+language+))
+  (re-concat 'line-start '+chunk-name+ '+operation+ '+language+))
 (defscanner +filechunk-definition+
   (re-concat '+file-name+ '+operation+ '+language+))
 @
