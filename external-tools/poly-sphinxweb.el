@@ -1,4 +1,4 @@
-;;; poly-sphinxweb.el --- Polymode for SphinxWEB literate programming system
+;;; poly-sphinxweb.el --- Polymode for SphinxLP literate programming system
 
 ;; Version: 0.1
 
@@ -12,12 +12,12 @@
 (require 'rst)
 
 (define-hostmode poly-sphinxweb-hostmode nil
-  "SphinxWEB test hostmode"
+  "SphinxLP test hostmode"
   :mode 'rst-mode
 )
 
 (define-auto-innermode poly-sphinxweb-innermode nil
-  "SphinxWEB text innermode."
+  "SphinxLP text innermode."
   :head-matcher "^\s*@?[(|<].*@[)|>]\s*=\s*.*\n"
   :tail-matcher "^\s*@\s*$"
   :mode 'host

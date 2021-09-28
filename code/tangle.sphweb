@@ -1,3 +1,74 @@
-Tangle. Program
-===============
+``tangle`` the Program
+======================
 
+Tangle is the program wich creates compilable source files from
+literate source.  
+
+Tangle uses |parsing| (as |Weave| too), only difference and stores
+results into files.
+
+Tangling
+--------
+
+@(tangle.py@) = python 
+@shebang #!/usr/bin/env python3
+@<Parsing@>
+
+@<Command line arguments@>
+
+
+def expand_code(chunk):
+    code = ''
+    if chunk is None:
+        return code
+    @<Check for recoursive expansion@>
+    for code_obj in chunk.code:
+        shift = 0
+        code += f"{code_obj.get_anchor(chunk.language)} <{chunk.name}>\n"
+        for line in code_obj.code.split('\n'):
+            if child := re.match(RERE.CHUNK_NAME, line):
+                try:
+                    child_code = expand_code(
+                            get_chunk(child.group('chunk'))
+                    )
+                except ValueError as e:
+                    logger.error(e)
+                    child_code = ''
+                context = line[:line.index('@<')] # Indentation
+                posttext = line.split('@>')[1] # Tail of symbols after chunk
+                # Push every line to context
+                child_code = child_code.replace('\n', '\n'+context)
+                # Add posttext
+                child_code += posttext
+                code += child_code
+                code += context + code_obj.get_anchor(chunk.language, shift) + f" Continues <{chunk.name}>\n" # Shift commentary ancor by indentation
+            else:
+                code += line + '\n'
+            shift += 1
+        code += code_obj.get_anchor(chunk.language, shift) + f" End of <{chunk.name}>\n" # Shift commentary ancor by indentation
+    return code
+    
+def tangle(output_dir):
+    for root in FILE_STORAGE.values():
+        with open(pathlib.PurePath(output_dir, root.name), "w") as tangled:
+            if root.shebang: tangled.write(root.shebang+'\n')
+            tangled.write(expand_code(root))
+
+def main():
+    params = cli_args()
+    files = find_files(params._in)
+    contain_chunks(files)
+    tangle(params.output_dir)
+
+if __name__ == '__main__':
+    main()
+@
+
+Building
+--------
+
+@userdoc: Build
+
+``sphtangle`` is the standalone executable than means we need to
+compile it. For this we need to define system and package. We will use
+|asdf| as the build system.

@@ -1,5 +1,5 @@
 ===================================================
-SphinxWEB. Sphinx based literate programming system
+SphinxLP. Sphinx based literate programming system
 ===================================================
 
 .. toctree::
@@ -32,24 +32,24 @@ Weaving
 -------
 
 Weaving is the procedure for creating restructuredText files from the
-SphinxWEB sources.
+SphinxLP sources.
 After weaving, you can build your documentation with Sphinx.
 
 
-Master WEB file
+Master LP file
 ---------------
 
 .. note::
    Actually, you can run weave or tangle from single file. This
    produce one ``.rst`` file.
-   Master WEB file needs only you want to split your source document
+   Master LP file needs only you want to split your source document
    on different files.
 
 This files describe connection between files in current theme\\product
 hierarchy. Actually, it's works the almost same as Sphinx master file,
 also knows as ``index.rst``.
 
-But for working with SphinxWEB we have some deffernces: you need to
+But for working with SphinxLP we have some deffernces: you need to
 use command @toc and @endtoc. Parameters for toctree used exactly the
 same as in regular Sphinx.
 
@@ -82,7 +82,7 @@ translates into
 
 For different indepent parts of project you can define different
 document hierarchies. That means in one project you may have more than
-one master WEB file. Use this if you can split your project into some subprojects.
+one master LP file. Use this if you can split your project into some subprojects.
 **This is the strongly recommended way.**
 
 .. warning:: You can use chunk application command (``=+``) ONLY in
@@ -90,7 +90,7 @@ one master WEB file. Use this if you can split your project into some subproject
    subproject.
 
 
-Development framework with SphinxWEB
+Development framework with SphinxLP
 ====================================
 
 TBD
@@ -104,7 +104,7 @@ List of all metamarkup commands
 commands starts with this symbol. If next symbol after **@** not the
 valid metamarkup command, then parser translates it as is.
 
-SphinxWEB builded on top of the ReStructuredText (sphinx extension).
+SphinxLP builded on top of the ReStructuredText (sphinx extension).
 List of additional markups:
 
 **@@**

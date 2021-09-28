@@ -1,0 +1,21 @@
+Configuration
+=============
+
+Config file
+-----------
+
+Command line arguments
+----------------------
+
+List of files or wildcards
+
+@<Command line arguments@> = python
+import argparse
+
+
+def cli_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--in', dest='_in')
+    parser.add_argument('--out', dest='output_dir')
+    return parser.parse_args()
+@
