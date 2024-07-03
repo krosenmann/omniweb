@@ -1,0 +1,64 @@
+When things go wrong
+======================
+
+In this section described some general errors and the error reaction
+mechanism
+
+Error reaction
+--------------
+
+For some cases when an error happens user can fix error on the
+fly. For example, undefined chunk was used or when gets the typo.
+
+In general, some mechanism of error reaction needed. Here we call this
+``continues``. In depends from the context we can bind different
+reaction for an exception what was raised. 
+
+.. code:: python
+
+    class CustomError(Exception):
+         pass
+
+    def broken_func(N):
+        if n % 2 == 1:
+            raise ValueError(f"Expected: {N}")
+        else
+            raise CustomError(f"Expected: {N}")
+
+    def test_error_bind():
+        bounded_errors = ErrorReaction(errors=(ValueError,CustomError), reaction=print)
+        run_with_continue(broken_func(3), bounded_errors)
+
+
+
+.. code-block:: python
+   :caption: **<Error continue>** =
+   :name: code_when-things-gone-wrong.sphweb_33
+   :force:
+
+    class ErrorReaction:
+    
+        def __init__(self, errors, reaction):
+            self.errors = tuple(errors)
+            self.reaction = reaction
+    
+    
+    def run_with_continue(func, reaction, *args, **kwargs):
+        try:
+            res = func(*args, **kwargs)
+        except reaction.errors as e:
+            res = reaction.reaction(e)
+        except Exception as e:
+            raise e
+        finally:
+            return res
+    
+Chunk defined at:
+
+#. :ref:`Error continue 0 <code_when-things-gone-wrong.sphweb_33>`
+
+Related chuks:
+
+
+Chunk used in:
+

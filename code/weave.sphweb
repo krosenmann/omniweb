@@ -213,6 +213,7 @@ for line in text.split('\n'):
         child = get_chunk(child_name.group('chunk'))
         if child is not None:
             finded_chunks.append(child)
+            bound_chunks(parent=current_chunk, child=child)
 # Add definitions  and extensions
 defined = "Chunk defined at:\n\n"
 used_in = "\nChunk used in:\n\n"

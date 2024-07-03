@@ -281,8 +281,8 @@ def read_code(chunk):
             yield line
 
 def bound_chunks(parent, child):
-    child.parents.apply(parent)
-    chunk.children.apply(child)
+    child.parents.append(parent)
+    parent.children.append(child)
 
 def get_chunk(chunk_name):
     chunk = CHUNK_STORAGE.get(chunk_name, None) or FILE_STORAGE.get(chunk_name, None)

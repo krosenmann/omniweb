@@ -2,6 +2,3 @@
 SphinxLP Main parts
 ====================
 
-@(__init__.py@) = python
-
-@

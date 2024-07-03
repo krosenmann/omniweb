@@ -1,13 +1,18 @@
+all: check html
+
 tangle: 
-	python3 ./bootstrap/tangle.py --in ./code --out ./tangled/
+	python3 ./bootstrap/tangle.py --in ./code --out ./sphinx_lp/
 
 check: tangle
-	mv ./tangled/tangle.py ./tangled/tangle1
-	python3 ./tangled/tangle1 --in ./code --out ./tangled
-	cmp ./tangled/tangle.py ./tangled/tangle1
+	mv ./sphinx_lp/tangle.py ./sphinx_lp/tangle1
+	python3 ./sphinx_lp/tangle1 --in ./code --out ./sphinx_lp
+	cmp ./sphinx_lp/tangle.py ./sphinx_lp/tangle1
 
 weave: tangle
-	python3 ./tangled/weave.py --in ./code/ --out ./source/code-doc/
+	python3 ./sphinx_lp/weave.py --in ./code/ --out ./source/
 
 html: weave
 	sphinx-build -b html source/ build/
+
+package: tangle
+	python3 -m build

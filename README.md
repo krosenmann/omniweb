@@ -1,4 +1,4 @@
-# sphinxweb
+# SphinxLP
 Literate programming system over Sphinx documentation system
 
 About dirs:

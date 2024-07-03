@@ -1,0 +1,449 @@
+Parsing
+=======
+
+Core point of parsing: read all given source files and create
+structures for chunks.
+
+
+.. code-block:: python
+   :caption: **<Parsing>** =
+   :name: code_parser.sphweb_7
+   :force:
+
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+    @<Chunk definition@>
+    @<Chunk regexps@>
+    @<Macro rexeps@>
+    @<Children parsing@>
+    @<File operations@>
+    @<Parse code@>
+    
+Chunk defined at:
+
+#. :ref:`Parsing 0 <code_parser.sphweb_7>`
+
+Related chuks:
+
+#. :ref:`Chunk definition <code_parser.sphweb_30>`
+#. :ref:`Chunk regexps <code_parser.sphweb_145>`
+#. :ref:`Macro rexeps <code_parser.sphweb_180>`
+#. :ref:`Children parsing <code_parser.sphweb_277>`
+#. :ref:`File operations <code_parser.sphweb_126>`
+#. :ref:`Parse code <code_parser.sphweb_225>`
+
+Chunk used in:
+
+#. :ref:`tangle.py <code_tangle.sphweb_13>`
+#. :ref:`weave.py <code_weave.sphweb_11>`
+
+Chunk definition
+----------------
+
+Chunk is the basic structure of SphinxLP. It has type, name, language
+and body. Body can contains code and references to the other
+chunks. Name of chunk is the unique charactiristic for given chunk.
+So, you can't create chunks with the same name.
+
+On parsing, all chunks stores in the hash container. 
+
+
+.. code-block:: python
+   :caption: **<Chunk definition>** =
+   :name: code_parser.sphweb_30
+   :force:
+
+    from collections import defaultdict
+    from dataclasses import dataclass
+    
+    CHUNK_STORAGE = {}
+    FILE_STORAGE = {}
+    
+    def get_comment_sym_for_lang(lang):
+        return '#'
+    
+    class Chunk:
+        storage = None
+    
+        def __init__(self, name: str, filename: str, line_number: int, code: str = '', language: str = ''):
+            self.name = name
+            self.filename = filename
+            self.language = language
+            self.parents = []
+            self.children = []
+            self.code = [
+                Code(
+                    line=line_number,
+                    code=code,
+                    source=filename,
+                )
+            ]
+    
+        def __add__(self, other):
+            if not isinstance(other, Chunk):
+                raise TypeError(
+                    f"{other} must be ``Chunk`` type, {type(other)} was given")
+            if self.name != other.name:
+                raise ValueError("Can't add chunk with different name!")
+            if self.filename != other.filename:
+                raise ValueError("Can't append chunk from different files!")
+            self.code.append(other.code[0])
+            return self
+    
+        @property
+        def line_number(self):
+            return self.code.line
+    
+        def apply(self):
+            first_appear = self.storage[self.name]
+            return first_appear + self
+    
+        def register(self):
+            assert self.storage is not None, "Chunk type unknown, storage undefined"
+            assert self.storage.get(self.name, None) is None, f"Chunk {self} already defined"
+            self.storage[self.name] = self
+    
+        def add_code_line(self, line):
+            self.code[-1].code += line
+    
+        def get_head_anchor(self):
+            return self.code[0].get_rst_anchor()
+    
+    
+    @dataclass
+    class Code:
+        source: str                 # Filename, where code difined
+        line: int                 # Line number where code defined
+        code: str                 # source code itself
+    
+        def get_anchor(self, language, shift=0):
+            comment_sym = get_comment_sym_for_lang(language)
+            anchor = f"{comment_sym} {self.source}:{self.line + shift}"
+            return anchor
+    
+        def get_rst_anchor(self):
+            return f"{self.source.replace('/', '_')}_{self.line}"
+    
+    class CodeChunk(Chunk):
+        storage = CHUNK_STORAGE
+    
+    class FileChunk(Chunk):
+        storage = FILE_STORAGE
+        shebang = ''
+    
+Chunk defined at:
+
+#. :ref:`Chunk definition 0 <code_parser.sphweb_30>`
+
+Related chuks:
+
+
+Chunk used in:
+
+#. :ref:`Parsing <code_parser.sphweb_7>`
+
+Technically, chunks creates all the time they readed, but registration
+possible only when chunks with given name don't exists OR was used ``=+`` operation.
+
+Reading a file
+--------------
+Every line of given file pushes to list
+- *line number*
+- *file name*
+- *line content*
+
+This operation needed for creating usefull error messages and for
+defining chunk coordinates on chunk creation.
+
+|SphinxLP| works with directories. We don't need to give the list of
+the files. Just directory path and SphinxLP find all ``.sphweb`` files.
+
+
+.. code-block:: python
+   :caption: **<File operations>** =
+   :name: code_parser.sphweb_126
+   :force:
+
+    import pathlib
+    
+    def find_files(directory_name):
+        dir_ = pathlib.Path(directory_name)
+        return list(dir_.glob("**/[!#]*.sphweb"))
+    
+    def contain_chunks(files):
+        for path in files:
+            with open(path, 'r') as f:
+                parse_text(f.readlines(), f.name)
+    
+Chunk defined at:
+
+#. :ref:`File operations 0 <code_parser.sphweb_126>`
+
+Related chuks:
+
+
+Chunk used in:
+
+#. :ref:`Parsing <code_parser.sphweb_7>`
+
+Regexps definition and prepare
+------------------------------
+Chunk definitions used both in |tagle| and |weave|. Parsing procedure
+slightly different, but compiled regexps are same. Also, we will not
+use string for of regexps, only precompiled. 
+
+
+.. code-block:: python
+   :caption: **<Chunk regexps>** =
+   :name: code_parser.sphweb_145
+   :force:
+
+    import re
+    from types import SimpleNamespace
+    
+    PATTERNS = {
+        'CHUNK_NAME': r"^\s*@<(?P<chunk>[^>]+)@>",
+        'FILE_NAME': r"@\((?P<chunk>[^)]+)@\)",
+        'OP': r"\s*(?P<op>=\+?)\s*",
+        'LANGUAGE': r"(?P<lang>[\S]+)\s*$",
+        'END_OF_CHUNK': r"^\s*@\s*$",
+        'SHEBANG': r"^\s*@shebang\s*(?P<shebang>.*$)",
+    }
+    
+    PATTERNS['CHUNK_DEF'] =  PATTERNS['CHUNK_NAME'] + PATTERNS['OP'] + PATTERNS['LANGUAGE']
+    PATTERNS['FILE_DEF'] = '^\s*' + PATTERNS['FILE_NAME'] + PATTERNS['OP'] + PATTERNS['LANGUAGE']
+    
+    RERE = SimpleNamespace()                       # Compiled regexps
+    
+    for name, pattern in PATTERNS.items():
+        setattr(RERE, name, re.compile(pattern))
+    
+Chunk defined at:
+
+#. :ref:`Chunk regexps 0 <code_parser.sphweb_145>`
+
+Related chuks:
+
+
+Chunk used in:
+
+#. :ref:`Parsing <code_parser.sphweb_7>`
+
+Next regexps are specific for weave. There's searchs for macro usages
+wich will expand on weave to RST syntax (in Sphinx variant). SphinLP
+macro has form ``@@name``. So that means we have only one regexp
+for macro. Name of macro can contains ``@@`` or alfanum symbols.
+
+Predefined macros:
+* ``@@@`` - ``@`` escape symbol.
+* ``@ifweave`` - ignore section for |tangle|
+* ``@literally`` - |weave| copy this section to documentation
+  literally, without macroexpand.
+* ``@end`` - end of section (e.g. ``@ifweave``)
+For more info see |Weave macro processing|
+
+
+.. code-block:: python
+   :caption: **<Macro rexeps>** =
+   :name: code_parser.sphweb_180
+   :force:
+
+    REMACRO = re.compile(r"^\s*@(?P<name>[@a-zA-Z]+)")
+    END_OF_MACRO = re.compile(r"^\s*@end\s*")
+    
+Chunk defined at:
+
+#. :ref:`Macro rexeps 0 <code_parser.sphweb_180>`
+
+Related chuks:
+
+
+Chunk used in:
+
+#. :ref:`Parsing <code_parser.sphweb_7>`
+
+Chunk parsing
+----------------
+
+Because SphinxLP is the metamarkup, we check code line-by-line and
+look for chunks. For different strategies of parsing regular text and
+code in chunks we use the mode switch.
+
+Idea of algorithm is very simple: 
+- For every line of code
+- If U see a chunk defition
+- Switch parser to the chunk mode
+- If line contains end of chunk
+- Save chunk to storage and switch the mode to text
+- If parser in chunk mode
+- Save line to the ``code`` field of chunk.
+
+In REPL work with chunk parser looks like this:
+
+.. code:: python
+
+          >>> from parser import *
+          >>> text = """This is the simple example
+          ... @<Some chunk@> = python
+          ... def f(args):
+          ...     pass
+          ... @
+          ... And some text at the end
+          ... """
+          >>> parse_text(text.split('\n'))
+          >>> chunk = CHUNK_STORAGE['Some chunk'][0]
+          >>> print(chunk.pp_code)
+          def f(args):
+              pass
+          >>> print(chunk.name)
+          Some chunk
+          >>> print(chunk.language)
+          python
+          >>> print(chunk.op)
+          =
+
+
+.. code-block:: python
+   :caption: **<Parse code>** =
+   :name: code_parser.sphweb_225
+   :force:
+
+    # Parsing modes
+    TEXT = 0
+    CHUNK = 1
+    
+    def parse_text(text, filename):
+        PARSE_MODE = TEXT           # Parsing starts always in text mode 
+        current_chunk = None
+        lino = 0                  
+        op = ''
+        for line in text:
+            lino += 1
+            if PARSE_MODE == TEXT:
+                if chunk_head := re.match(RERE.CHUNK_DEF, line):
+                    PARSE_MODE = CHUNK
+                    op = chunk_head.group('op')
+                    current_chunk = CodeChunk(
+                        name=chunk_head.group('chunk'), 
+                        line_number=lino,
+                        filename=filename,
+                        language=chunk_head.group('lang')
+                    ) 
+                if chunk_head := re.match(RERE.FILE_DEF, line):
+                    PARSE_MODE = CHUNK
+                    op = chunk_head.group('op')
+                    current_chunk = FileChunk(
+                        name=chunk_head.group('chunk'), 
+                        line_number=lino,
+                        filename=filename,
+                        language=chunk_head.group('lang')
+                    ) 
+                continue
+            if PARSE_MODE == CHUNK:
+                assert current_chunk is not None
+                if re.match(RERE.END_OF_CHUNK, line): # End of chunk?
+                    if op == '=':
+                        current_chunk.register()
+                    elif op == '=+':
+                        current_chunk.apply()
+                    else:
+                        ParserError("Undefined chunk")
+                    PARSE_MODE = TEXT
+                    current_chunk = None
+                    op = ''
+                elif shebang := re.match(RERE.SHEBANG, line):
+                    assert isinstance(current_chunk, FileChunk), "``@shebang`` macro can be used only in file chunks"
+                    current_chunk.shebang = shebang.group('shebang')
+                else:
+                    logger.info(current_chunk.name)
+                    current_chunk.add_code_line(line) # Save code line to the chunk object
+    
+Chunk defined at:
+
+#. :ref:`Parse code 0 <code_parser.sphweb_225>`
+
+Related chuks:
+
+
+Chunk used in:
+
+#. :ref:`Parsing <code_parser.sphweb_7>`
+
+
+.. code-block:: python
+   :caption: **<Children parsing>** =
+   :name: code_parser.sphweb_277
+   :force:
+
+    def read_code(chunk):
+        for code in chunk.code:
+            for line in code.code.split('\n'):
+                yield line
+    
+    def bound_chunks(parent, child):
+        child.parents.append(parent)
+        parent.children.append(child)
+    
+    def get_chunk(chunk_name):
+        chunk = CHUNK_STORAGE.get(chunk_name, None) or FILE_STORAGE.get(chunk_name, None)
+        if not chunk:
+            print(f"{chunk_name} chunk UNDEFINED")
+            return 
+        return chunk
+    
+    def find_children(chunk):
+        for line in read_code(chunk):
+            if child_name := re.match(RERE.CHUNK_NAME, line):
+                child = get_chunk(child_name)
+                if child is None:
+                    continue
+                bound_chunks(parent=chunk,
+                             child=child)
+                return chunk.children
+        return []
+    
+    def build_tree(chunk):
+        for child in find_children(chunk):
+            build_tree(child)
+    
+    
+Chunk defined at:
+
+#. :ref:`Children parsing 0 <code_parser.sphweb_277>`
+
+Related chuks:
+
+
+Chunk used in:
+
+#. :ref:`Parsing <code_parser.sphweb_7>`
+
+Testing
+=======
+
+SphinxLP document contains doctests and used as test itself. See
+docutils documentation for more info.
+
+
+.. code-block:: Makefile
+   :caption: **{../test.mk}** =
+   :name: code_parser.sphweb_317
+   :force:
+
+    .ONESHELL:
+    SHELL = python3
+    test:
+    	@import doctest
+    	doctest.testfile("code/parser.sphweb")
+    
+Chunk defined at:
+
+#. :ref:`../test.mk 0 <code_parser.sphweb_317>`
+
+Related chuks:
+
+
+Chunk used in:
+

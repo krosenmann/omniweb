@@ -1,0 +1,205 @@
+===============================================
+OmniWEB: omnipotent literate programming system
+===============================================
+
+
+Blocks
+======
+
+Any block, despite it chunk or document, represented by the same structure:
+
+.. describe:: name
+   
+   Given name, in case of named chunks, or filename
+
+.. describe:: text
+   
+   Content of block
+
+.. describe:: id
+   
+   Unique identifier of a block. Constructed like this: ``<name>-<type>-<order number>``.
+   Where ``type`` is one of the "chunk" or "doc", and number represents an order in that block with given name appeared in file.
+
+.. describe:: prev
+
+   ID of a previous block
+
+.. describe:: next
+
+   ID of a next block
+
+
+The next two are chunk specific attributes.
+
+.. describe:: children
+
+   names of chunks, mentioned in a chunk.
+   
+.. describe:: parents
+
+   names of chunks, that mentions current chunk.
+
+.. note::
+   At the time, I don't know, what the best variant of splitting documents.
+   For now I didn't do anything with given structure of document, and think that we will use just text-to-text translation on weave. 
+   For example.
+   If we'd describe syntax of ``CWEB``, block object doesn't give a fuck about sections breaks, and only on weave to, let's say, typst, `@` from CWEB will be translated to "=". 
+   If, of course, typst allows to use unnamed headings, I haven't checked it yet.
+
+It is possible to create ID for a block on parsing stage, but it requires to track indices of chunks, so to slightly simplify and untangle algorithms of parsing, I decided to make an autoincrement of ids of blocks on saving in the |Sea of blocks|.
+
+Thing can be implemented this way:
+
+@<Block@> = python
+from dataclasses import dataclass
+
+
+@dataclass
+class Block:
+    name: str
+    text: str
+    __index: int | None
+    type_name: str | None = None
+
+    @property
+    def id(self):
+        if self.__index is None:
+            return None
+        return f'{self.name}-{self.type_name}-{self.__index}'
+
+    def set_id(self, int):
+        self.__index = int
+
+
+class Doc(Block):
+    type_name="doc"
+    
+
+class Chunk(Block):
+    type_name = "chunk"
+    children=None
+    parents=None
+    tangle_target=''
+
+    @<Chunk methods@>
+@
+
+
+
+Sea of blocks
+=============
+
+All text blocks represented in the system as a one-to-go format of data.
+Sea of blocks is the module that holds all the text blocks.
+No matter, was it a code chunk, or part of documentation: we can use it all.
+
+From model perspective, sea of blocks is a random access storage, and we can extract code blocks by names or their ids.
+
+.. describe:: store *object*
+
+   Throw object into Sea.
+
+.. describe:: get *name* or *id*
+
+   Pull object from the Sea. If name was provided, all objects with the same name returned.
+
+.. describe:: get_root *name*
+
+   For chained text blocks with the same name, return the root one.
+
+
+Implementation
+--------------
+
+In general, exact implementation of the Sea can be different.
+For example, you can create a server, and keep it running all the time you work on the source.
+Also it possible to create something like language server, that works with others language servers, and connect it to an editor.
+
+In this variant we will use a trivial solution, where Sea is just a class.
+Especially on ``get_root`` you can see, why we need IDs of blocks to be comparable and orderable.
+In this case we just use alphabetical ordering, but for alternative implementation you can use any other way to order ids that fits you're implementation.
+
+.. note::
+   There is possible problems, and maybe it's needed to not use minimal id, but block without any parent? It'll be root for sure.
+
+It makes me think, that we actually don't need to return a list of blocks from ``get`` method, because in most cases we actually need only the root one and link to the next chunk with same name.
+
+
+@<Sea of blocks@> = python
+class Sea:
+    """Sea of text blocks, can be used for storing and retrieving blocks.
+
+    """
+    __storage = dict()
+    __name_index = defaultdict(list)
+
+    def store(self, obj):
+        if obj.id is None:
+            obj.set_id(len(self.__name_index[obj.name]))
+        self.__storage[obj.id] = obj
+        __name_index[obj.name].append(obj.id)
+        return obj
+
+    def get(self, id=None, *, name=None):
+        if id is not None:
+            return self.__storage[id]
+        if name is not None:
+            docs_ids = self.__name_index[name]
+            return [self.__storage[id_] for id_ in docs_ids]
+        raise ValueError("``name`` or ``id`` must be specified")
+
+    def get_root(self, name):
+        docs_ids = self.__name_index[name]
+        # TODO: how about different types of ordering? Maybe define ``<`` op in blocks and try to order them?
+        return self.get(id=min(docs_ids))
+    
+    <@Blocks communication@>
+@
+
+Blocks communication
+--------------------
+
+On a construction stage, blocks does not communicating directly from one to other.
+"Communicating" in this context means functions, like "Chunk claims it has children chunks with given names: ...". Main communication and coordination work done by the Sea.
+
+??
+
+@<Blocks communication@> = python
+def claim_children(self, sender_id, *children):
+    sender = self.get(sender_id)
+    
+
+
+@
+
+I have some struggles with registering child-parent relation.
+I can't decide, how to do it properly. 
+Simplest idea is to add one more cycle to the Sea and then run it, after parsing is done.
+It'll go through whole Sea memory, and sets all sets all parent-child relations.
+
+On parsing stage itself, all what we need is to register children's names.
+
+Other way is to add a some sort of waiting list. We do not register child, if it not exists yet, so we add claim of parent to waiting list.
+
+When children are arrived, we go through waiting list, and set relation for all parent and child, mentioned in waiting list.
+
+.. note::
+   Maybe make another module for parent-child relations control? And implement there?
+
+Children and parents registration
+---------------------------------
+
+@<Chunk methods@> = python
+def add_child(self, child_name):
+    self.children.append(child_name)
+
+def add_parent(self, parent_name):
+    self.parents.append(parent_name)
+@
+
+
+SphinxWEB variant
+=================
+
+Yet nothing here

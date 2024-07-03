@@ -189,7 +189,7 @@ def parse_text(text, filename):
                 elif op == '=+':
                     current_chunk.apply()
                 else:
-                    ParserError("Undefined chunk")
+                    TypeError("Undefined chunk")
                 PARSE_MODE = TEXT
                 current_chunk = None
                 op = ''
@@ -250,6 +250,10 @@ def expand_code(chunk):
     return code
     
 def tangle(output_dir):
+    output_dir = pathlib.Path(output_dir)
+
+    if not output_dir.exists():
+        output_dir.mkdir()
     for root in FILE_STORAGE.values():
         with open(pathlib.PurePath(output_dir, root.name), "w") as tangled:
             if root.shebang: tangled.write(root.shebang+'\n')
