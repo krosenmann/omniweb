@@ -1,0 +1,259 @@
+Omniweb's project definition
+==========================
+
+From the top level, every project we can define as multiple files with literate source texts in them, but actually it's slightly more complex structure.
+
+Here, we will define core elements of the Omniweb system, and will try to implement them in a way, that allows us implement work with multiple WEB formats and some useful functions.
+
+Firstly, we define "Document" -- linear representation required for ``weave`` function, and then untangle (unintentional pun) dichotomy of the Chunk, caused by simultaneous presence of ``weave`` and ``tangle`` functions.
+
+@(project.py@) = python
+@<Omniweb document@>
+@<Text block@>
+@<Chunk@>
+@
+
+
+Omniweb document
+----------------
+
+Document is the abstraction of content of a single omniweb file.
+It represented as a complex linear structure of text blocks and code chunks.
+
+Document can add element into the sequence, read exact element, or read whole sequence.
+
+Also we tracking source file document's content belongs to.
+
+.. graph::
+
+       "Document" -- "° Read element";
+       "Document" -- "° Add element";
+       "Document" -- "° Read sequence";
+       "Document" -- "* Chunk body";
+       "Document" -- "* Text block";
+       "Document" -- "Source file name";
+
+
+Document doesn't tracks any additional information about chunks connections, this is the responsibility of chunks themselves.
+
+Second important thing about chunks: we place in a sequence not the whole named chunk, but the only part, that defined on exact position of the document.
+
+.. note::
+
+   By now, I'm not sure about deleting elements from the document, nor about destructing the document itself. For some functions, like an LSP support, it might be a requirement, but by now I'm marking that as OMB.
+
+@<Omniweb document@> = python
+
+class Document:
+
+    def __init__(self, source_name):
+        self.source_name = source_name
+        self._content = []
+
+    def read_element(self, n: int):
+        return self._content[n]
+
+    def add_element(self, element):
+        self._content.append(element)
+
+    def read_sequence(self):
+        return self._content
+
+@
+
+Text block
+----------
+
+Text block constructed linearly in the order as content defined in file. You can see it as a text between code chunks. We not interested in syntactic structure of a document in terms of "chapters", "section"; nor in grammar of host syntax itself. Every sequence of characters that does not belongs to a chunk is the text block.
+
+But, it has a little bit more complex structure than just "sequence of characters". It might be quite useful to have in our text block some macroses.
+
+We don't talk specific about exact macroses, because their interpretation defined only in the context of the exact weave function. From the perspective of the text block only one thing matters: is it a macro, or is it just a plain content?
+
+In terms of actions, text block can add some sequence of text characters as a plain content, or a macro usage; and show whole sequence to a reader.
+
+.. graph::
+
+   "Text block" -- "* content";
+   "* content" -- "° Plain content";
+   "* content" -- "° Macro usage";
+   "Text block" -- "° Add plain content";
+   "Text block" -- "° Add macro usage";
+   "Text block" -- "° Read content";
+
+@<Text block@> = python
+
+class Macro:
+    """Dummy type for marking macro usage"""
+
+    def __init__(self, text: str):
+        self.text = text
+
+
+class TextBlock:
+    def __init__(self):
+        self._content = []
+
+    def add_plain_content(self, content: str):
+        self._content.append(content)
+
+    def add_macro(self, macro_usage: str):
+        self._content.append(Macro(macro_usage))
+
+    @property
+    def content(self):
+        # This property exists as a declaration of public API
+        # of the Text block.
+        return self._content
+@
+
+Chunks
+------
+
+Chunks are the most complex structure in this story, because they are bounded both linearly to the Document and hierarchically and linearly to others of same kind.
+
+Let's begin from a structure, that matters in context of a Document: the Chunk body.
+
+Chunk body is quiet similar to the TextBlock: it contains plain text and mentions of another chunks. Metadata property will help as with additional information that we will possibly need in order to perform some additional functions we don't know yet.
+
+.. graph::
+
+    subgraph {
+        "Chunk body" -- "* Line"
+        "Chunk body" -- "° Add code to body"
+        "Chunk body" -- "° Add mention to body"
+        "Chunk body" -- "° Read body"
+        "* Line" -- "Character"
+        "* Line" -- "Chunk mention"
+        "Chunk body" -- "Id"
+        "Chunk body" -- "Metadata"
+        "Chunk body" -- "Chunk name body belongs to"
+        "Chunk mention" -- "° Child chunk name"
+        "Chunk mention" -- "° —"
+    }
+
+@<Chunk@> = python
+
+class ChunkBody:
+
+    def __init__(self, chunk_name, id: int):
+        self.chunk_name = chunk_name
+        self._content = []
+        self.id = id
+        self.metadata = {}
+
+    def add_code(self, line: str):
+        self._content.append(line)
+
+    def add_mention(self, line: str, name: str):
+        self._content.append((line, name))
+
+    @property
+    def content(self):
+        return self._content
+@
+
+So now we can say, that "Chunk" as an object actually a collection of all definitions of the named chunk. Moreover, Chunk IS the interface to create and control chunk bodies. Also chunk tracks it's parents (another chunks, that mentions it in their bodies).
+
+.. graph::
+
+    subgraph {
+        "Chunk" -- "° Create chunk body";
+        "Chunk" -- "° Get chunk body by Id";
+        "Chunk" -- "° Get chunks";
+        "Chunk" -- "Unique Name";
+        "Chunk" -- "Metadata";
+        "Chunk" -- "* Chunk body"
+        "Chunk" -- "* Parent chunk"
+    }
+
+@<Chunk@> =+ python
+
+class Chunk:
+    def __init__(self, name):
+        self.name = name
+        self._bodies = []
+        self.metadata = {}
+        self.parents = []
+
+    def create_chunk_body(self):
+        new_body = ChunkBody(chunk_name=self.name, id=len(self.bodies))
+        self._bodies.add(new_body)
+        return new_body
+
+    def get_chunk_body(self, id: int):
+        return self._bodies[id]
+
+    def add_parent(self, name: str):
+        self.parents.add(name)
+@
+
+Root chunks, filenames, and overall chunk interface
+---------------------------------------------------
+
+Not all chunks actually the same, there is chunks of special kind: root chunks, defined with filename. In some LP systems root chunks defined as an anonymous, like in CWEB. In that case, name of tangled file is the same as the literate source file, but with other extension.
+
+Let's define it as a special type of chunk without parents and with a name with the special meaning.
+
+.. graph::
+
+   "File chunk" -- unnamed_chunk_body
+   "File chunk" -- "File name"
+   "File chunk" -- "Metadata"
+   unnamed_chunk_body [label = "* Chunk body"]
+
+
+@<Chunk@> =+ python
+
+class FileChunk(Chunk):
+
+    def __init__(self, filename: str):
+        self.filename = filename
+        self._bodies = []
+        self.metadata = {}
+@
+
+Now it's time to talk about public interface and how things actually bounded to a project.
+
+We still didn't mention anything about how we can access chunks and filechunks and how they identified exactly. Moreover, we have quite chaotic objects that connected one to another and quite inadequate public interface.
+
+In order to dismantle this mess, let's introduce new entity: the Project's source. It contains information about all the source code, that defined, e.g. all named chunks and filechunks. So it allows us to define actions we need to.
+
+.. graph::
+
+        "Project src" -- "* File chunk"
+        "Project src" -- "* Chunk"
+        "Project src" -- "° Create chunk"
+        "Project src" -- "° Create filechunk"
+        "Project src" -- "° Read filechunks"
+        "Project src" -- "° Get chunk by name"
+        "Project src" -- "° Get filechunk by name"
+
+
+@(project.py@) =+ python
+NAMED_CHUNKS = {}
+ROOT_CHUNKS = {}
+
+
+def create_chunk(name: str):
+    chunk = Chunk(name)
+    NAMED_CHUNKS[name] = chunk
+    return chunk
+
+def create_filechunk(name: str):
+    chunk = FileChunk(name)
+    ROOT_CHUNKS[name] = chunk
+    return chunk
+
+
+def read_filechunks():
+    return [chunk for file_name, chunk in ROOT_CHUNKS.items()]
+
+
+def get_chunk(name: str):
+    return NAMED_CHUNKS[name]
+
+
+def get_filechunk(file_name: str):
+    return ROOT_CHUNKS[name]
+@
