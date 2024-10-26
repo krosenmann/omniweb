@@ -29,7 +29,7 @@ Also we tracking source file document's content belongs to.
        "Document" -- "° Read element";
        "Document" -- "° Add element";
        "Document" -- "° Read sequence";
-       "Document" -- "* Chunk body";
+       "Document" -- "* Code block";
        "Document" -- "* Text block";
        "Document" -- "Source file name";
 
@@ -112,29 +112,29 @@ Chunks
 
 Chunks are the most complex structure in this story, because they are bounded both linearly to the Document and hierarchically and linearly to others of same kind.
 
-Let's begin from a structure, that matters in context of a Document: the Chunk body.
+Let's begin from a structure, that matters in context of a Document: the Code block.
 
-Chunk body is quiet similar to the TextBlock: it contains plain text and mentions of another chunks. Metadata property will help as with additional information that we will possibly need in order to perform some additional functions we don't know yet.
+Code block is quiet similar to the TextBlock: it contains plain text and mentions of another chunks. Metadata property will help as with additional information that we will possibly need in order to perform some additional functions we don't know yet.
 
 .. graph::
 
     subgraph {
-        "Chunk body" -- "* Line"
-        "Chunk body" -- "° Add code to body"
-        "Chunk body" -- "° Add mention to body"
-        "Chunk body" -- "° Read body"
+        "Code block" -- "* Line"
+        "Code block" -- "° Add code to body"
+        "Code block" -- "° Add mention to body"
+        "Code block" -- "° Read body"
         "* Line" -- "Character"
         "* Line" -- "Chunk mention"
-        "Chunk body" -- "Id"
-        "Chunk body" -- "Metadata"
-        "Chunk body" -- "Chunk name body belongs to"
+        "Code block" -- "Id"
+        "Code block" -- "Metadata"
+        "Code block" -- "Chunk name body belongs to"
         "Chunk mention" -- "° Child chunk name"
         "Chunk mention" -- "° —"
     }
 
 @<Chunk@> = python
 
-class ChunkBody:
+class CodeBlock:
 
     def __init__(self, chunk_name, id: int):
         self.chunk_name = chunk_name
@@ -158,12 +158,12 @@ So now we can say, that "Chunk" as an object actually a collection of all defini
 .. graph::
 
     subgraph {
-        "Chunk" -- "° Create chunk body";
-        "Chunk" -- "° Get chunk body by Id";
+        "Chunk" -- "° Create code block";
+        "Chunk" -- "° Get code block by Id";
         "Chunk" -- "° Get chunks";
         "Chunk" -- "Unique Name";
         "Chunk" -- "Metadata";
-        "Chunk" -- "* Chunk body"
+        "Chunk" -- "* Code block"
         "Chunk" -- "* Parent chunk"
     }
 
@@ -172,16 +172,16 @@ So now we can say, that "Chunk" as an object actually a collection of all defini
 class Chunk:
     def __init__(self, name):
         self.name = name
-        self._bodies = []
+        self._blocks = []
         self.metadata = {}
         self.parents = []
 
-    def create_chunk_body(self):
-        new_body = ChunkBody(chunk_name=self.name, id=len(self.bodies))
-        self._bodies.add(new_body)
+    def create_code_block(self):
+        new_block = CodeBlock(chunk_name=self.name, id=len(self._blocks))
+        self._bodies.add(new_block)
         return new_body
 
-    def get_chunk_body(self, id: int):
+    def get_code_block(self, id: int):
         return self._bodies[id]
 
     def add_parent(self, name: str):
@@ -197,10 +197,10 @@ Let's define it as a special type of chunk without parents and with a name with 
 
 .. graph::
 
-   "File chunk" -- unnamed_chunk_body
+   "File chunk" -- unnamed_code_block
    "File chunk" -- "File name"
    "File chunk" -- "Metadata"
-   unnamed_chunk_body [label = "* Chunk body"]
+   unnamed_code_block [label = "* Code block"]
 
 
 @<Chunk@> =+ python
